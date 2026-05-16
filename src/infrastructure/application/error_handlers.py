@@ -1,0 +1,49 @@
+"""Map domain errors onto standardized REST error responses.
+
+This module is the single translation point between the domain's
+failure vocabulary and the HTTP wire.
+"""
+
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
+
+from src.domain.errors import (
+    ArticleContainsStopWord,
+    ArticleNotFound,
+    ArticleSlugAlreadyExists,
+    DomainError,
+)
+
+
+async def article_not_found_handler(
+    _: Request, exc: ArticleNotFound
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": str(exc), "identifier": exc.identifier},
+    )
+
+
+async def article_contains_stop_word_handler(
+    _: Request, exc: ArticleContainsStopWord
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc), "field": exc.field, "word": exc.word},
+    )
+
+
+async def article_slug_already_exists_handler(
+    _: Request, exc: ArticleSlugAlreadyExists
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc), "slug": exc.slug},
+    )
+
+
+ERROR_HANDLERS: tuple[tuple[type[DomainError], object], ...] = (
+    (ArticleNotFound, article_not_found_handler),
+    (ArticleContainsStopWord, article_contains_stop_word_handler),
+    (ArticleSlugAlreadyExists, article_slug_already_exists_handler),
+)
