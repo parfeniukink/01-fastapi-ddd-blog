@@ -44,3 +44,19 @@ class CognitiveLayerUnavailable(DomainError):
     def __init__(self, reason: str) -> None:
         super().__init__(f"Cognitive layer unavailable: {reason}")
         self.reason = reason
+
+
+class ExternalSourceUnreachable(DomainError):
+    """An external article source could not be reached."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"External source unreachable: {reason}")
+        self.reason = reason
+
+
+class ExternalSourceFormatChanged(DomainError):
+    """An external article source returned an unexpected shape."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"External source format changed: {reason}")
+        self.reason = reason

@@ -1,8 +1,9 @@
-"""Article use cases — CRUD plus editorial actions.
+"""Article use cases — CRUD, editorial actions, inbound imports.
 
-Editorial actions live alongside CRUD because they operate on the
-same aggregate. The HTTP layer dispatches a single `/actions` route
-to one of them based on the `?action=` query parameter.
+CRUD and editorial actions hang off the same article aggregate.
+`import_account_articles` is the Part 3 use case — it iterates an
+`ExternalArticleSource`, runs the article aggregate's policies on
+each draft, and persists through the existing repository.
 """
 
 from src.domain.articles import (
@@ -11,6 +12,8 @@ from src.domain.articles import (
     ArticleSummary,
     ArticleUpdate,
     BookshelfRepository,
+    ExternalArticleSource,
+    ImportReport,
 )
 from src.domain.articles.policies import find_stop_word
 from src.domain.cognitive_layer import (
@@ -19,7 +22,11 @@ from src.domain.cognitive_layer import (
     CognitiveRequest,
     CognitiveResponse,
 )
-from src.domain.errors import CognitiveOutputRefused
+from src.domain.errors import (
+    ArticleNotFound,
+    CognitiveOutputRefused,
+    DomainError,
+)
 
 
 async def articles_list(
@@ -98,6 +105,44 @@ async def suggest_title(
         cognitive,
         kind=AssistanceKind.SUGGEST_TITLE,
         input_text=article.body,
+    )
+
+
+async def import_account_articles(
+    repository: BookshelfRepository,
+    source: ExternalArticleSource,
+    account: str,
+) -> ImportReport:
+    """Pull articles from `source` for `account` and persist them.
+
+    Each fetched draft is validated against the article aggregate's
+    own policies. Drafts whose slug already exists are skipped;
+    drafts that fail domain validation are counted as failed; the
+    rest go through `add_article`.
+    """
+    imported = skipped = failed = 0
+
+    async for draft in source.fetch(account):
+        try:
+            draft.validate_policies()
+        except DomainError:
+            failed += 1
+            continue
+
+        try:
+            await repository.article(draft.slug)
+        except ArticleNotFound:
+            await repository.add_article(draft)
+            imported += 1
+        else:
+            skipped += 1
+
+    return ImportReport(
+        source=source.kind,
+        account=account,
+        imported=imported,
+        skipped=skipped,
+        failed=failed,
     )
 
 
