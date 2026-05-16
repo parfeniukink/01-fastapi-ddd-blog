@@ -11,6 +11,8 @@ from src.domain.errors import (
     ArticleContainsStopWord,
     ArticleNotFound,
     ArticleSlugAlreadyExists,
+    CognitiveLayerUnavailable,
+    CognitiveOutputRefused,
     DomainError,
 )
 
@@ -42,8 +44,28 @@ async def article_slug_already_exists_handler(
     )
 
 
+async def cognitive_output_refused_handler(
+    _: Request, exc: CognitiveOutputRefused
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": str(exc), "reason": exc.reason},
+    )
+
+
+async def cognitive_layer_unavailable_handler(
+    _: Request, exc: CognitiveLayerUnavailable
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": str(exc), "reason": exc.reason},
+    )
+
+
 ERROR_HANDLERS: tuple[tuple[type[DomainError], object], ...] = (
     (ArticleNotFound, article_not_found_handler),
     (ArticleContainsStopWord, article_contains_stop_word_handler),
     (ArticleSlugAlreadyExists, article_slug_already_exists_handler),
+    (CognitiveOutputRefused, cognitive_output_refused_handler),
+    (CognitiveLayerUnavailable, cognitive_layer_unavailable_handler),
 )
