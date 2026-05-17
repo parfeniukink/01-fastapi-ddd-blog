@@ -14,6 +14,8 @@ from src.domain.errors import (
     CognitiveLayerUnavailable,
     CognitiveOutputRefused,
     DomainError,
+    ExternalSourceFormatChanged,
+    ExternalSourceUnreachable,
 )
 
 
@@ -62,10 +64,30 @@ async def cognitive_layer_unavailable_handler(
     )
 
 
+async def external_source_unreachable_handler(
+    _: Request, exc: ExternalSourceUnreachable
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": str(exc), "reason": exc.reason},
+    )
+
+
+async def external_source_format_changed_handler(
+    _: Request, exc: ExternalSourceFormatChanged
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={"detail": str(exc), "reason": exc.reason},
+    )
+
+
 ERROR_HANDLERS: tuple[tuple[type[DomainError], object], ...] = (
     (ArticleNotFound, article_not_found_handler),
     (ArticleContainsStopWord, article_contains_stop_word_handler),
     (ArticleSlugAlreadyExists, article_slug_already_exists_handler),
     (CognitiveOutputRefused, cognitive_output_refused_handler),
     (CognitiveLayerUnavailable, cognitive_layer_unavailable_handler),
+    (ExternalSourceUnreachable, external_source_unreachable_handler),
+    (ExternalSourceFormatChanged, external_source_format_changed_handler),
 )

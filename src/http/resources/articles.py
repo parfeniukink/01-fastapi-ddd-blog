@@ -1,9 +1,9 @@
-"""Articles HTTP resource — CRUD plus editorial-actions dispatcher."""
+"""Articles HTTP resource — CRUD, editorial actions, inbound imports."""
 
 from fastapi import APIRouter, HTTPException, status
 
 from src.application import articles
-from src.domain.articles import ArticleDraft, ArticleUpdate
+from src.domain.articles import ArticleDraft, ArticleUpdate, ExternalSource
 from src.domain.cognitive_layer import AssistanceKind
 from src.http.contracts.articles import (
     ArticleCreateRequest,
@@ -12,10 +12,15 @@ from src.http.contracts.articles import (
     ArticleUpdateRequest,
 )
 from src.http.contracts.assistance import ActionPublic, ActionRequest
+from src.http.contracts.imports import ImportReportPublic, ImportRequest
 from src.infrastructure.database.repositories.articles import (
     SqlAlchemyArticlesRepository,
 )
 from src.infrastructure.database.transaction import transactional
+from src.infrastructure.integrations import (
+    MediumArticleSource,
+    RedditArticleSource,
+)
 from src.infrastructure.pydantic_bindings import PydanticAICognitiveLayer
 
 
@@ -89,3 +94,26 @@ async def article_actions(
             response = await articles.suggest_title(repository, layer, slug)
 
     return ActionPublic.model_validate(response)
+
+
+@router.post("/imports", status_code=status.HTTP_200_OK)
+@transactional
+async def article_imports(
+    body: ImportRequest,
+    source: ExternalSource,
+) -> ImportReportPublic:
+    """Pull articles from `?source=<medium|reddit>` for `account`."""
+    repository = SqlAlchemyArticlesRepository()
+
+    match source:
+        case ExternalSource.MEDIUM:
+            adapter = MediumArticleSource()
+        case ExternalSource.REDDIT:
+            adapter = RedditArticleSource()
+
+    report = await articles.import_account_articles(
+        repository=repository,
+        source=adapter,
+        account=body.account,
+    )
+    return ImportReportPublic.model_validate(report)

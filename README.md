@@ -1,24 +1,26 @@
-# rest-ddd-fastapi-blog (iteration-02)
+# rest-ddd-fastapi-blog (iteration-03)
 
 A small FastAPI project that demonstrates DDD dependency direction.
 
-This branch is **Iteration 02** — the Part 1 baseline plus an AI assistant for
-the writer, behind a `domain/cognitive_layer/` abstraction implemented with
-[pydantic-ai](https://ai.pydantic.dev/).
+This branch is **Iteration 03** — the Part 2 state plus inbound integrations.
+One domain abstraction (`ExternalArticleSource`) sits in front of two
+concrete adapters (`MediumArticleSource`, `RedditArticleSource`) that pull
+posts from Medium RSS and Reddit JSON.
 
-## What changed (main → iteration-02)
+## What changed (iteration-02 → iteration-03)
 
-- `src/domain/cognitive_layer/` — `CognitiveLayer` ABC, `CognitiveRequest` /
-  `CognitiveResponse`, `AssistanceKind`, `PROMPTS`
-- `src/domain/errors/__init__.py` — `CognitiveOutputRefused`,
-  `CognitiveLayerUnavailable`
-- `src/application/articles.py` — `summarize_article`, `improve_grammar`,
-  `suggest_title`, plus the shared `_ask_and_enforce`
-- `src/http/contracts/assistance.py` — `ActionRequest`, `ActionPublic`
-- `src/http/resources/articles.py` — `POST /articles/{slug}/actions` dispatcher
-- `src/infrastructure/pydantic_bindings.py` — `PydanticAICognitiveLayer`
+- `src/domain/articles/inbound.py` — `ExternalSource` enum, `ImportReport`
+  shape, `ExternalArticleSource` ABC (one file inside the existing aggregate)
+- `src/domain/errors/__init__.py` — `ExternalSourceUnreachable` (→ 503) and
+  `ExternalSourceFormatChanged` (→ 502)
+- `src/application/articles.py` — `import_account_articles(repository, source, account)`
+- `src/http/contracts/imports.py` — `ImportRequest` (`min_length=1` on account)
+  and `ImportReportPublic`
+- `src/http/resources/articles.py` — `POST /articles/imports?source=...` dispatcher
+- `src/infrastructure/integrations/{medium.py, reddit.py}` — concrete adapters
+  with their own URL templates, timeouts, and JSON / RSS parsing
 - `src/infrastructure/application/error_handlers.py` — two new handlers + entries
-- `src/tests/fakes/cognitive.py` and `src/tests/unit/test_cognitive.py`
+- `src/tests/fakes/inbound.py` and `src/tests/unit/test_imports.py`
 
 ## Install
 
@@ -29,8 +31,7 @@ pip install -e ".[dev]"
 ## Run
 
 ```bash
-export OPENAI_API_KEY=...                # or another pydantic-ai provider
-export ASSIST_MODEL=openai:gpt-4o-mini   # optional; default is openai:gpt-4o-mini
+export OPENAI_API_KEY=...
 export DATABASE_URL=postgresql+asyncpg://blog:blog@localhost:5432/blog
 uvicorn src.main:app --reload
 ```
