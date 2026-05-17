@@ -16,6 +16,7 @@ from src.domain.errors import (
     [
         pytest.param(
             ArticleDraft(
+                author="jane.doe",
                 title="Short",
                 slug="short",
                 summary="Short summary",
@@ -26,6 +27,7 @@ from src.domain.errors import (
         ),
         pytest.param(
             ArticleDraft(
+                author="jane.doe",
                 title="Headline with multiple words",
                 slug="headline-with-multiple-words",
                 summary="A longer summary that spans several words.",
@@ -36,6 +38,7 @@ from src.domain.errors import (
         ),
         pytest.param(
             ArticleDraft(
+                author="jane.doe",
                 title="A" * 100,
                 slug="very-long-title",
                 summary="x",
@@ -47,10 +50,10 @@ from src.domain.errors import (
     ],
 )
 @pytest.mark.asyncio
-async def test_publish_article_persists_various_drafts(
+async def test_create_article_persists_various_drafts(
     repository, draft: ArticleDraft
 ) -> None:
-    created = await articles.publish_article(repository, draft)
+    created = await articles.create_article(repository, draft)
     fetched = await articles.get_article(repository, draft.slug)
     assert fetched == created
 
@@ -61,6 +64,7 @@ async def test_publish_article_persists_various_drafts(
         pytest.param(
             "title",
             ArticleDraft(
+                author="jane.doe",
                 title="Top 10 spam techniques",
                 slug="t1",
                 summary="ok",
@@ -72,6 +76,7 @@ async def test_publish_article_persists_various_drafts(
         pytest.param(
             "summary",
             ArticleDraft(
+                author="jane.doe",
                 title="Ok",
                 slug="t2",
                 summary="A clickbait piece",
@@ -83,6 +88,7 @@ async def test_publish_article_persists_various_drafts(
         pytest.param(
             "body",
             ArticleDraft(
+                author="jane.doe",
                 title="Ok",
                 slug="t3",
                 summary="ok",
@@ -94,22 +100,22 @@ async def test_publish_article_persists_various_drafts(
     ],
 )
 @pytest.mark.asyncio
-async def test_publish_article_rejects_drafts_with_stop_words(
+async def test_create_article_rejects_drafts_with_stop_words(
     repository, field: str, draft: ArticleDraft
 ) -> None:
     with pytest.raises(ArticleContainsStopWord) as exc_info:
-        await articles.publish_article(repository, draft)
+        await articles.create_article(repository, draft)
     assert exc_info.value.field == field
 
 
 @pytest.mark.asyncio
-async def test_publish_article_rejects_duplicate_slug(
+async def test_create_article_rejects_duplicate_slug(
     repository, sample_draft: ArticleDraft
 ) -> None:
-    await articles.publish_article(repository, sample_draft)
+    await articles.create_article(repository, sample_draft)
 
     with pytest.raises(ArticleSlugAlreadyExists) as exc_info:
-        await articles.publish_article(repository, sample_draft)
+        await articles.create_article(repository, sample_draft)
 
     assert exc_info.value.slug == sample_draft.slug
 
@@ -118,7 +124,7 @@ async def test_publish_article_rejects_duplicate_slug(
 async def test_update_article_replaces_mutable_fields(
     repository, sample_draft: ArticleDraft
 ) -> None:
-    await articles.publish_article(repository, sample_draft)
+    await articles.create_article(repository, sample_draft)
     update = ArticleUpdate(
         title="Edited",
         summary="Revised summary.",
@@ -136,7 +142,7 @@ async def test_update_article_replaces_mutable_fields(
 async def test_delete_article_removes_it(
     repository, sample_draft: ArticleDraft
 ) -> None:
-    await articles.publish_article(repository, sample_draft)
+    await articles.create_article(repository, sample_draft)
     await articles.delete_article(repository, sample_draft.slug)
 
     with pytest.raises(ArticleNotFound):
@@ -153,7 +159,7 @@ async def test_get_article_raises_when_slug_is_unknown(repository) -> None:
 async def test_article_lookup_is_polymorphic_on_int_and_str(
     repository, sample_draft: ArticleDraft
 ) -> None:
-    created = await articles.publish_article(repository, sample_draft)
+    created = await articles.create_article(repository, sample_draft)
     by_slug = await repository.article(sample_draft.slug)
     by_id = await repository.article(created.id)
     assert by_slug == by_id == created

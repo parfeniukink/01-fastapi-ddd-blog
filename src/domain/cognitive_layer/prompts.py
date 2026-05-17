@@ -16,4 +16,16 @@ PROMPTS: dict[AssistanceKind, str] = {
         "Suggest a short, clear title for the article below. "
         "Return only the title."
     ),
+    AssistanceKind.REVIEW_GRAMMAR: (
+        "Review the following article for grammar, spelling, and clarity issues. "
+        "If there are no issues, return exactly 'CLEAN'. "
+        "Otherwise, list each issue on its own line, prefixed with '- '. "
+        "Be terse: one line per issue."
+    ),
+    AssistanceKind.REVIEW_CONSISTENCY: (
+        "Review the following article for logical inconsistencies, factual "
+        "contradictions, or claims that the article itself does not support. "
+        "If there are no issues, return exactly 'CLEAN'. "
+        "Otherwise, list each issue on its own line, prefixed with '- '."
+    ),
 }

@@ -1,10 +1,10 @@
 """Article repository implementations.
 
-Two implementations of the same domain contract:
-
-- `InMemoryArticlesRepository` — used by tests.
-- `SqlAlchemyArticlesRepository` — used by the running app. Inherits
-  the session + flush plumbing from `SqlAlchemyDAL`.
+The ``transition`` method enforces the invariant ``reject_message is
+not None ↔ status is REJECTED``: any transition to a non-REJECTED
+state clears the column. This keeps the rule in one place — every
+caller can pass ``reject_message=None`` (or omit it) and trust that
+nothing stale is left behind.
 """
 
 from datetime import date
@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.articles import (
     Article,
     ArticleDraft,
+    ArticleStatus,
     ArticleSummary,
     ArticleUpdate,
     BookshelfRepository,
@@ -34,6 +35,7 @@ class InMemoryArticlesRepository(BookshelfRepository):
             else [
                 Article(
                     id=1,
+                    author="blog.admin",
                     title="DDD blog intro",
                     slug="ddd-blog-intro",
                     summary="A small article used as a teaching example.",
@@ -50,9 +52,11 @@ class InMemoryArticlesRepository(BookshelfRepository):
         self._articles = [
             ArticleSummary(
                 id=a.id,
+                author=a.author,
                 title=a.title,
                 slug=a.slug,
                 summary=a.summary,
+                status=a.status,
                 published_on=a.published_on,
             )
             for a in self._by_id.values()
@@ -104,6 +108,21 @@ class InMemoryArticlesRepository(BookshelfRepository):
             raise ArticleNotFound(identifier) from exc
         self._by_id.pop(article.id, None)
 
+    async def transition(
+        self,
+        slug: str,
+        status: ArticleStatus,
+        reject_message: str | None = None,
+    ) -> Article:
+        existing = await self._article_by_slug(slug)
+        new_message = reject_message if status == ArticleStatus.REJECTED else None
+        updated = existing.model_copy(
+            update={"status": status, "reject_message": new_message}
+        )
+        self._by_id[updated.id] = updated
+        self._by_slug[updated.slug] = updated
+        return updated
+
 
 class SqlAlchemyArticlesRepository(SqlAlchemyDAL, BookshelfRepository):
     def __init__(self, session: AsyncSession | None = None) -> None:
@@ -113,18 +132,22 @@ class SqlAlchemyArticlesRepository(SqlAlchemyDAL, BookshelfRepository):
     async def load_articles(self) -> list[ArticleSummary]:
         stmt = select(
             ArticlesTable.id,
+            ArticlesTable.author,
             ArticlesTable.title,
             ArticlesTable.slug,
             ArticlesTable.summary,
+            ArticlesTable.status,
             ArticlesTable.published_on,
         )
         rows = (await self.session.execute(stmt)).all()
         self._articles = [
             ArticleSummary(
                 id=row.id,
+                author=row.author,
                 title=row.title,
                 slug=row.slug,
                 summary=row.summary,
+                status=ArticleStatus(row.status),
                 published_on=row.published_on,
             )
             for row in rows
@@ -132,7 +155,7 @@ class SqlAlchemyArticlesRepository(SqlAlchemyDAL, BookshelfRepository):
         return self._articles
 
     async def add_article(self, draft: ArticleDraft) -> Article:
-        row = ArticlesTable(**draft.model_dump())
+        row = ArticlesTable(**draft.model_dump(), status=ArticleStatus.DRAFT.value)
         self.session.add(row)
         try:
             await self.flush()
@@ -165,6 +188,20 @@ class SqlAlchemyArticlesRepository(SqlAlchemyDAL, BookshelfRepository):
         await self.session.delete(row)
         await self.flush()
 
+    async def transition(
+        self,
+        slug: str,
+        status: ArticleStatus,
+        reject_message: str | None = None,
+    ) -> Article:
+        row = await self._fetch_row_by_slug(slug)
+        row.status = status.value
+        row.reject_message = (
+            reject_message if status == ArticleStatus.REJECTED else None
+        )
+        await self.flush()
+        return self._to_entity(row)
+
     async def _fetch_row_by_id(self, identifier: int) -> ArticlesTable:
         stmt = select(ArticlesTable).where(ArticlesTable.id == identifier)
         row = (await self.session.execute(stmt)).scalar_one_or_none()
@@ -183,11 +220,14 @@ class SqlAlchemyArticlesRepository(SqlAlchemyDAL, BookshelfRepository):
     def _to_entity(row: ArticlesTable) -> Article:
         return Article(
             id=row.id,
+            author=row.author,
             title=row.title,
             slug=row.slug,
             summary=row.summary,
             body=row.body,
             published_on=row.published_on,
+            status=ArticleStatus(row.status),
+            reject_message=row.reject_message,
         )
 
 
