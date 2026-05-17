@@ -9,7 +9,9 @@ from fastapi.responses import JSONResponse
 
 from src.domain.errors import (
     ArticleContainsStopWord,
+    ArticleInvalidTransition,
     ArticleNotFound,
+    ArticlePublicationRejected,
     ArticleSlugAlreadyExists,
     CognitiveLayerUnavailable,
     CognitiveOutputRefused,
@@ -82,6 +84,29 @@ async def external_source_format_changed_handler(
     )
 
 
+async def article_invalid_transition_handler(
+    _: Request, exc: ArticleInvalidTransition
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={
+            "detail": str(exc),
+            "from_status": exc.from_status,
+            "to_status": exc.to_status,
+            "role": exc.role,
+        },
+    )
+
+
+async def article_publication_rejected_handler(
+    _: Request, exc: ArticlePublicationRejected
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc), "violations": exc.violations},
+    )
+
+
 ERROR_HANDLERS: tuple[tuple[type[DomainError], object], ...] = (
     (ArticleNotFound, article_not_found_handler),
     (ArticleContainsStopWord, article_contains_stop_word_handler),
@@ -90,4 +115,6 @@ ERROR_HANDLERS: tuple[tuple[type[DomainError], object], ...] = (
     (CognitiveLayerUnavailable, cognitive_layer_unavailable_handler),
     (ExternalSourceUnreachable, external_source_unreachable_handler),
     (ExternalSourceFormatChanged, external_source_format_changed_handler),
+    (ArticleInvalidTransition, article_invalid_transition_handler),
+    (ArticlePublicationRejected, article_publication_rejected_handler),
 )

@@ -1,7 +1,7 @@
 [project]
 name = "rest-ddd-fastapi-blog"
-version = "0.3.0"
-description = "FastAPI + DDD + REST — Iteration 03: Medium and Reddit inbound scrapers"
+version = "0.4.0"
+description = "FastAPI + DDD + REST — Iteration 04: role-aware publication lifecycle, split pipeline, persistence-vs-contract reject_message"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.110",

@@ -60,3 +60,33 @@ class ExternalSourceFormatChanged(DomainError):
     def __init__(self, reason: str) -> None:
         super().__init__(f"External source format changed: {reason}")
         self.reason = reason
+
+
+class ArticleInvalidTransition(DomainError):
+    """An article cannot move from `from_status` to `to_status` (by `role`).
+
+    Carries the acting role too — the same transition may be illegal
+    because of the source state, the target state, OR because the role
+    is not the one that owns the transition. The error stays a single
+    type with three fields rather than splitting into separate classes,
+    so the error mapping is one entry.
+    """
+
+    def __init__(self, *, from_status: str, to_status: str, role: str) -> None:
+        super().__init__(
+            f"Role {role!r} cannot transition article from "
+            f"{from_status!r} to {to_status!r}."
+        )
+        self.from_status = from_status
+        self.to_status = to_status
+        self.role = role
+
+
+class ArticlePublicationRejected(DomainError):
+    """The publication pipeline produced violations."""
+
+    def __init__(self, violations: list[dict[str, object]]) -> None:
+        super().__init__(
+            f"Article failed publication pipeline ({len(violations)} violations)."
+        )
+        self.violations = violations

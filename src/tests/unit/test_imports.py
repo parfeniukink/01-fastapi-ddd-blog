@@ -10,6 +10,7 @@ from src.tests.fakes.inbound import FakeArticleSource
 
 def _draft(slug: str, title: str = "A post") -> ArticleDraft:
     return ArticleDraft(
+        author="jane.doe",
         title=title,
         slug=slug,
         summary="Summary.",

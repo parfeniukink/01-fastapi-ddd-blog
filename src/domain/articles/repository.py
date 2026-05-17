@@ -4,6 +4,7 @@ import abc
 import functools
 
 from .entities import Article, ArticleDraft, ArticleSummary, ArticleUpdate
+from .policies import ArticleStatus
 
 
 class BookshelfRepository(abc.ABC):
@@ -28,6 +29,7 @@ class BookshelfRepository(abc.ABC):
     @functools.singledispatchmethod
     async def article(self, identifier) -> Article:
         """Polymorphic article retrieval by ID or Slug"""
+
         raise NotImplementedError(
             f"Unsupported identifier type: {type(identifier).__name__}"
         )
@@ -51,6 +53,7 @@ class BookshelfRepository(abc.ABC):
     @functools.singledispatchmethod
     async def delete_article(self, identifier) -> None:
         """Polymorphic article removal by ID or Slug"""
+
         raise NotImplementedError(
             f"Unsupported identifier type: {type(identifier).__name__}"
         )
@@ -70,3 +73,19 @@ class BookshelfRepository(abc.ABC):
     @abc.abstractmethod
     async def _delete_by_slug(self, identifier: str) -> None:
         """Delete article by slug"""
+
+    @abc.abstractmethod
+    async def transition(
+        self,
+        slug: str,
+        status: ArticleStatus,
+        reject_message: str | None = None,
+    ) -> Article:
+        """Atomically update the article's status.
+
+        ``reject_message`` is meaningful only when ``status`` is
+        ``REJECTED``; for any other target the implementation clears
+        the column. The invariant ``reject_message is not None ↔
+        status is REJECTED`` is enforced by the repository, not
+        scattered across use cases.
+        """
