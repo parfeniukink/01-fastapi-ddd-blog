@@ -1,25 +1,22 @@
-"""Articles HTTP resource — CRUD, no business logic.
+"""Articles HTTP resource — CRUD plus editorial-actions dispatcher."""
 
-The session is request-scoped via `DatabaseSessionMiddleware`, so
-route handlers do not declare `Depends(get_session)`. The repository
-picks up the current session through `current_session()` inside
-`SqlAlchemyDAL`.
-"""
-
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 
 from src.application import articles
 from src.domain.articles import ArticleDraft, ArticleUpdate
+from src.domain.cognitive_layer import AssistanceKind
 from src.http.contracts.articles import (
     ArticleCreateRequest,
     ArticlePublic,
     ArticleSummaryPublic,
     ArticleUpdateRequest,
 )
+from src.http.contracts.assistance import ActionPublic, ActionRequest
 from src.infrastructure.database.repositories.articles import (
     SqlAlchemyArticlesRepository,
 )
 from src.infrastructure.database.transaction import transactional
+from src.infrastructure.pydantic_bindings import PydanticAICognitiveLayer
 
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
@@ -62,3 +59,33 @@ async def article_update(slug: str, body: ArticleUpdateRequest) -> ArticlePublic
 async def article_delete(slug: str) -> None:
     repository = SqlAlchemyArticlesRepository()
     await articles.delete_article(repository, slug)
+
+
+@router.post("/{slug}/actions", status_code=status.HTTP_200_OK)
+async def article_actions(
+    slug: str,
+    action: AssistanceKind,
+    body: ActionRequest | None = None,
+) -> ActionPublic:
+    """Dispatch a writer-initiated action against an article."""
+    repository = SqlAlchemyArticlesRepository()
+    layer = PydanticAICognitiveLayer()
+
+    match action:
+        case AssistanceKind.SUMMARIZE:
+            response = await articles.summarize_article(repository, layer, slug)
+
+        case AssistanceKind.IMPROVE_GRAMMAR:
+            if body is None or body.input is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="`input` is required for improve_grammar",
+                )
+            response = await articles.improve_grammar(
+                repository, layer, slug, body.input,
+            )
+
+        case AssistanceKind.SUGGEST_TITLE:
+            response = await articles.suggest_title(repository, layer, slug)
+
+    return ActionPublic.model_validate(response)

@@ -28,3 +28,19 @@ class ArticleSlugAlreadyExists(DomainError):
     def __init__(self, slug: str) -> None:
         super().__init__(f"Article with slug {slug!r} already exists.")
         self.slug = slug
+
+
+class CognitiveOutputRefused(DomainError):
+    """The cognitive layer declined to produce output."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Cognitive layer refused: {reason}")
+        self.reason = reason
+
+
+class CognitiveLayerUnavailable(DomainError):
+    """The cognitive layer was unreachable."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Cognitive layer unavailable: {reason}")
+        self.reason = reason

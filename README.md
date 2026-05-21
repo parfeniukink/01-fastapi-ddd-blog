@@ -1,22 +1,26 @@
-# rest-ddd-fastapi-blog
+# rest-ddd-fastapi-blog (iteration-02)
 
 Read on blog: https://blog.parfeniukink.space/p/fastapi-ddd-blog
 
 A small FastAPI project that demonstrates DDD dependency direction.
 
-`main` is **Iteration 01** — CRUD + the dependency direction. The follow-on
-branches (`iteration-02`, `iteration-03`, `iteration-04`) add an AI assistant,
-inbound integrations, and internal domain growth (leads + papers). Diff
-between any two branches to see what a given part adds.
+This branch is **Iteration 02** — the Part 1 baseline plus an AI assistant for
+the writer, behind a `domain/cognitive_layer/` abstraction implemented with
+[pydantic-ai](https://ai.pydantic.dev/).
 
-## Goal
+## What changed (main → iteration-02)
 
-- `domain` contains business models, errors, and repository contracts
-- `application` coordinates use cases against domain contracts
-- `http` exposes REST endpoints and maps domain errors to status codes
-- `infrastructure` implements persistence details
-- `main.py` is the composition root that wires everything together
-- tests construct the in-memory repository directly — no database required
+- `src/domain/cognitive_layer/` — `CognitiveLayer` ABC, `CognitiveRequest` /
+  `CognitiveResponse`, `AssistanceKind`, `PROMPTS`
+- `src/domain/errors/__init__.py` — `CognitiveOutputRefused`,
+  `CognitiveLayerUnavailable`
+- `src/application/articles.py` — `summarize_article`, `improve_grammar`,
+  `suggest_title`, plus the shared `_ask_and_enforce`
+- `src/http/contracts/assistance.py` — `ActionRequest`, `ActionPublic`
+- `src/http/resources/articles.py` — `POST /articles/{slug}/actions` dispatcher
+- `src/infrastructure/pydantic_bindings.py` — `PydanticAICognitiveLayer`
+- `src/infrastructure/application/error_handlers.py` — two new handlers + entries
+- `src/tests/fakes/cognitive.py` and `src/tests/unit/test_cognitive.py`
 
 ## Install
 
@@ -24,31 +28,11 @@ between any two branches to see what a given part adds.
 pip install -e ".[dev]"
 ```
 
-## Database assumptions
-
-This example assumes PostgreSQL already exists and already has an `articles`
-table that matches `src/infrastructure/database/tables.py`.
-
-```bash
-postgresql+asyncpg://blog:blog@localhost:5432/blog
-```
-
-Example minimal schema:
-
-```sql
-CREATE TABLE articles (
-    id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) NOT NULL UNIQUE,
-    summary VARCHAR(500) NOT NULL,
-    body TEXT NOT NULL,
-    published_on DATE NOT NULL
-);
-```
-
 ## Run
 
 ```bash
+export OPENAI_API_KEY=...                # or another pydantic-ai provider
+export ASSIST_MODEL=openai:gpt-4o-mini   # optional; default is openai:gpt-4o-mini
 export DATABASE_URL=postgresql+asyncpg://blog:blog@localhost:5432/blog
 uvicorn src.main:app --reload
 ```

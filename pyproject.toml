@@ -1,11 +1,12 @@
 [project]
 name = "rest-ddd-fastapi-blog"
-version = "0.1.0"
-description = "FastAPI + DDD + REST — dependency direction across iterations"
+version = "0.2.0"
+description = "FastAPI + DDD + REST — Iteration 02: AI assistant via pydantic-ai"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.110",
   "pydantic>=2.0",
+  "pydantic-ai>=0.0.14",
   "sqlalchemy>=2.0",
   "asyncpg>=0.29",
   "uvicorn>=0.29",
