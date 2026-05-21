@@ -1,5 +1,7 @@
 # rest-ddd-fastapi-blog
 
+Read on blog: https://blog.parfeniukink.space/p/fastapi-ddd-blog
+
 A small FastAPI project that demonstrates DDD dependency direction.
 
 `main` is **Iteration 01** — CRUD + the dependency direction. The follow-on
